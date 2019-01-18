@@ -1,7 +1,7 @@
 /*
   xdrv_09_timers.ino - timer support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -682,8 +682,8 @@ const char HTTP_FORM_TIMER1[] PROGMEM =
 
 void HandleTimerConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_TIMER);
 
   if (WebServer->hasArg("save")) {
