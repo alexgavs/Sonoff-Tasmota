@@ -1,7 +1,7 @@
 /*
   my_user_config.h - user specific configuration for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,20 +51,20 @@
 
 // If not selected the default will be SONOFF_BASIC
 //#define MODULE                 SONOFF_BASIC      // [Module] Select default model from sonoff_template.h
-
+#define MODULE  WEMOS                              //
 #define SAVE_DATA              1                 // [SaveData] Save changed parameters to Flash (0 = disable, 1 - 3600 seconds)
 #define SAVE_STATE             1                 // [SetOption0] Save changed power state to Flash (0 = disable, 1 = enable)
 
 // -- Wifi ----------------------------------------
-#define WIFI_IP_ADDRESS        "0.0.0.0"         // [IpAddress1] Set to 0.0.0.0 for using DHCP or IP address
+#define WIFI_IP_ADDRESS        "0.0.0.0"         // [IpAddress1] Set to 0.0.0.0 for using DHCP or enter a static IP address
 #define WIFI_GATEWAY           "192.168.1.1"     // [IpAddress2] If not using DHCP set Gateway IP address
 #define WIFI_SUBNETMASK        "255.255.255.0"   // [IpAddress3] If not using DHCP set Network mask
 #define WIFI_DNS               "192.168.1.1"     // [IpAddress4] If not using DHCP set DNS IP address (might be equal to WIFI_GATEWAY)
 
-#define STA_SSID1              "GAVS"                // [Ssid1] Wifi SSID
+#define STA_SSID1              "G1"                // [Ssid1] Wifi SSID
 #define STA_PASS1              "1f665628ff"                // [Password1] Wifi password
-#define STA_SSID2              ""                // [Ssid2] Optional alternate AP Wifi SSID
-#define STA_PASS2              ""                // [Password2] Optional alternate AP Wifi password
+#define STA_SSID2              "GAVS"                // [Ssid2] Optional alternate AP Wifi SSID
+#define STA_PASS2              STA_PASS1                          // [Password2] Optional alternate AP Wifi password
 #define WIFI_CONFIG_TOOL       WIFI_RETRY        // [WifiConfig] Default tool if wifi fails to connect
                                                  //   (WIFI_RESTART, WIFI_SMARTCONFIG, WIFI_MANAGER, WIFI_WPSCONFIG, WIFI_RETRY, WIFI_WAIT, WIFI_SERIAL)
 #define WIFI_CONFIG_NO_SSID    WIFI_WPSCONFIG    // Default tool if wifi fails to connect and no SSID is configured
@@ -131,8 +131,11 @@
 // -- HTTP ----------------------------------------
 #define WEB_SERVER             2                 // [WebServer] Web server (0 = Off, 1 = Start as User, 2 = Start as Admin)
 #define WEB_PASSWORD           "frol"                // [WebPassword] Web server Admin mode Password for WEB_USERNAME (empty string = Disable)
-#define FRIENDLY_NAME          "GAVSOFF"          // [FriendlyName] Friendlyname up to 32 characters used by webpages and Alexa
+#define FRIENDLY_NAME          "Sonoff"          // [FriendlyName] Friendlyname up to 32 characters used by webpages and Alexa
 #define EMULATION              EMUL_WEMO         // [Emulation] Select Belkin WeMo (single relay/light) or Hue Bridge emulation (multi relay/light) (EMUL_NONE, EMUL_WEMO or EMUL_HUE)
+
+// -- mDNS ----------------------------------------
+#define MDNS_ENABLED           0                 // [SetOption55] Use mDNS (0 = Disable, 1 = Enable)
 
 // -- Time - Up to three NTP servers in your region
 #define NTP_SERVER1            "pool.ntp.org"       // [NtpServer1] Select first NTP server by name or IP address (129.250.35.250)
@@ -156,7 +159,7 @@
 #define TIME_STD_OFFSET        +60               // Offset from UTC in minutes (-780 to +780)
 
 // -- Location ------------------------------------
-#define LATITUDE               32.458360         // [Latitude] Your location to be used with sunrise and sunset
+#define LATITUDE               32.158360         // [Latitude] Your location to be used with sunrise and sunset
 #define LONGITUDE              34.894442          // [Longitude] Your location to be used with sunrise and sunset
 
 // -- Application ---------------------------------
@@ -222,7 +225,7 @@
 //#define USE_SMARTCONFIG                          // Add support for Wifi SmartConfig as initial wifi configuration tool (+23k code, +0.6k mem)
 
 // -- OTA -----------------------------------------
-//#define USE_ARDUINO_OTA                          // Add optional support for Arduino OTA (+13k code)
+#define USE_ARDUINO_OTA                          // Add optional support for Arduino OTA (+13k code)
 
 /*-------------------------------------------------------------------------------------------*\
  * Select ONE of possible MQTT library types below
@@ -322,8 +325,11 @@
 //  #define USE_DS3231                             // Enable DS3231 external RTC in case no Wifi is avaliable. See docs in the source file (+1k2 code)
 //    #define USE_RTC_ADDR  0x68                   // Default I2C address 0x68
 //  #define USE_MGC3130                            // Enable MGC3130 Electric Field Effect Sensor (I2C address 0x42) (+2k7 code, 0k3 mem)
+//  #define USE_PN532_I2C                          // Enable PN532 - Near Field Communication (NFC) controller (+1k7 code, 164 bytes of mem)
+//    #define USE_PN532_DATA_FUNCTION              // Enable PN532 DATA Usage using Sensor15 command (+1k6 code, 316 bytes of mem)
+//    #define USE_PN532_CAUSE_EVENTS               // Enable PN532 driver to cause event's on card read in addition to immediate telemetry (+64 bytes code, 48 bytes mem)
 
-//  #define USE_DISPLAY                            // Add I2C Display Support (+2k code)
+  #define USE_DISPLAY                            // Add I2C Display Support (+2k code)
     #define USE_DISPLAY_MODES1TO5                // Enable display mode 1 to 5 in addition to mode 0
     #define USE_DISPLAY_LCD                      // [DisplayModel 1] Enable Lcd display (I2C addresses 0x27 and 0x3F) (+6k code)
     #define USE_DISPLAY_SSD1306                  // [DisplayModel 2] Enable SSD1306 Oled 128x64 display (I2C addresses 0x3C and 0x3D) (+16k code)
@@ -379,6 +385,8 @@
 #define USE_MCP39F501                            // Add support for MCP39F501 Energy monitor as used in Shelly 2 (+3k1 code)
 
 // -- Low level interface devices -----------------
+//#define USE_MAX31855                             // Add support for MAX31855 K-Type thermocouple sensor using softSPI
+
 #define USE_IR_REMOTE                            // Send IR remote commands using library IRremoteESP8266 and ArduinoJson (+4k3 code, 0k3 mem, 48 iram)
 //  #define USE_IR_HVAC                            // Support for HVAC (Toshiba, Mitsubishi and LG) system using IR (+3k5 code)
   #define USE_IR_RECEIVE                         // Support for IR receiver (+7k2 code, 264 iram)
@@ -404,7 +412,7 @@
 
 #define USE_RC_SWITCH                            // Add support for RF transceiver using library RcSwitch (+2k7 code, 460 iram)
 
-//#define USE_RF_SENSOR                            // Add support for RF sensor receiver (434MHz or 868MHz) (+0k8 code)
+#define USE_RF_SENSOR                            // Add support for RF sensor receiver (434MHz or 868MHz) (+0k8 code)
 //  #define USE_THEO_V2                            // Add support for decoding Theo V2 sensors as documented on https://sidweb.nl using 434MHz RF sensor receiver (+1k4 code)
 //  #define USE_ALECTO_V2                          // Add support for decoding Alecto V2 sensors like ACH2010, WS3000 and DKW2012 weather stations using 868MHz RF sensor receiver (+1k7 code)
 

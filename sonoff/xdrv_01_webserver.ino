@@ -1,7 +1,7 @@
 /*
   xdrv_01_webserver.ino - webserver for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -255,6 +255,10 @@ const char HTTP_BTN_CONF[] PROGMEM =
 const char HTTP_FORM_MODULE[] PROGMEM =
   "<fieldset><legend><b>&nbsp;" D_MODULE_PARAMETERS "&nbsp;</b></legend><form method='get' action='md'>"
   "<br/><b>" D_MODULE_TYPE "</b> ({mt)<br/><select id='g99' name='g99'></select><br/>";
+
+const char HTTP_FORM_MODULE_PULLUP[] PROGMEM =
+  "<br/><input style='width:10%;' id='b1' name='b1' type='checkbox'{r1><b>" D_PULLUP_ENABLE "</b><br/>";
+
 const char HTTP_LNK_ITEM[] PROGMEM =
   "<div><a href='#p' onclick='c(this)'>{v}</a>&nbsp;({w})&nbsp<span class='q'>{i} {r}%</span></div>";
 const char HTTP_LNK_SCAN[] PROGMEM =
@@ -751,11 +755,17 @@ void HandleAjaxStatusRefresh(void)
   WebServer->send(200, FPSTR(HDR_CTYPE_HTML), mqtt_data);
 }
 
-boolean HttpUser(void)
+boolean HttpCheckPriviledgedAccess(boolean autorequestauth = true)
 {
-  boolean status = (HTTP_USER == webserver_state);
-  if (status) { HandleRoot(); }
-  return status;
+  if (HTTP_USER == webserver_state) {
+    HandleRoot();
+    return false;
+  }
+  if (autorequestauth && !WebAuthenticate()) {
+    WebServer->requestAuthentication();
+    return false;
+  }
+  return true;
 }
 
 /*-------------------------------------------------------------------------------------------*/
@@ -764,8 +774,8 @@ boolean HttpUser(void)
 
 void HandleConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURATION);
 
   String page = FPSTR(HTTP_HEAD);
@@ -787,8 +797,7 @@ void HandleConfiguration(void)
 
 void HandleModuleConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
 
   if (WebServer->hasArg("save")) {
     ModuleSaveSettings();
@@ -837,6 +846,12 @@ void HandleModuleConfiguration(void)
   page.replace(F("<body>"), F("<body onload='sl()'>"));
   page += FPSTR(HTTP_FORM_MODULE);
   page.replace(F("{mt"), AnyModuleName(MODULE));
+
+  if (my_module_flag.pullup) {
+    page += FPSTR(HTTP_FORM_MODULE_PULLUP);
+    page.replace(F("{r1"), (Settings.flag3.no_pullup) ? F(" checked") : F(""));
+  }
+
   page += F("<br/><table>");
   for (byte i = 0; i < sizeof(cmodule); i++) {
     if (GPIO_USER == ValidGPIO(i, cmodule.io[i])) {
@@ -861,6 +876,11 @@ void ModuleSaveSettings(void)
   byte new_module = (!strlen(tmp)) ? MODULE : atoi(tmp);
   Settings.last_module = Settings.module;
   Settings.module = new_module;
+  if (Settings.last_module == new_module) {
+    if (my_module_flag.pullup) {
+      Settings.flag3.no_pullup = WebServer->hasArg("b1");
+    }
+  }
   myio cmodule;
   ModuleGpios(&cmodule);
   String gpios = "";
@@ -895,8 +915,7 @@ String htmlEscape(String s)
 
 void HandleWifiConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
 
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_WIFI);
 
@@ -1023,8 +1042,8 @@ void WifiSaveSettings(void)
 
 void HandleLoggingConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_LOGGING);
 
   if (WebServer->hasArg("save")) {
@@ -1106,8 +1125,8 @@ void LoggingSaveSettings(void)
 
 void HandleOtherConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_OTHER);
 
   if (WebServer->hasArg("save")) {
@@ -1123,6 +1142,7 @@ void HandleOtherConfiguration(void)
   page += FPSTR(HTTP_HEAD_STYLE);
   page += FPSTR(HTTP_FORM_OTHER);
   page.replace(F("{r1"), (Settings.flag.mqtt_enabled) ? F(" checked") : F(""));
+
   uint8_t maxfn = (devices_present > MAX_FRIENDLYNAMES) ? MAX_FRIENDLYNAMES : (!devices_present) ? 1 : devices_present;
   if (SONOFF_IFAN02 == Settings.module) { maxfn = 1; }
   for (byte i = 0; i < maxfn; i++) {
@@ -1177,8 +1197,8 @@ void OtherSaveSettings(void)
 
 void HandleBackupConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_BACKUP_CONFIGURATION));
 
   if (!SettingsBufferAlloc()) { return; }
@@ -1221,8 +1241,7 @@ void HandleBackupConfiguration(void)
 
 void HandleResetConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
 
   char svalue[33];
 
@@ -1242,8 +1261,8 @@ void HandleResetConfiguration(void)
 
 void HandleRestoreConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_RESTORE_CONFIGURATION);
 
   String page = FPSTR(HTTP_HEAD);
@@ -1263,8 +1282,8 @@ void HandleRestoreConfiguration(void)
 
 void HandleInformation(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_INFORMATION);
 
   char stopic[TOPSZ];
@@ -1345,16 +1364,19 @@ void HandleInformation(void)
 #else
   func += F(D_DISABLED);
 #endif // USE_EMULATION
-
   func += F("}1" D_MDNS_DISCOVERY "}2");
 #ifdef USE_DISCOVERY
-  func += F(D_ENABLED);
-  func += F("}1" D_MDNS_ADVERTISE "}2");
+  if (Settings.flag3.mdns_enabled) {
+    func += F(D_ENABLED);
+    func += F("}1" D_MDNS_ADVERTISE "}2");
 #ifdef WEBSERVER_ADVERTISE
-  func += F(D_WEB_SERVER);
+    func += F(D_WEB_SERVER);
 #else
-  func += F(D_DISABLED);
+    func += F(D_DISABLED);
 #endif // WEBSERVER_ADVERTISE
+  } else {
+    func += F(D_DISABLED);
+  }
 #else
   func += F(D_DISABLED);
 #endif // USE_DISCOVERY
@@ -1383,8 +1405,8 @@ void HandleInformation(void)
 
 void HandleUpgradeFirmware(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_FIRMWARE_UPGRADE);
 
   String page = FPSTR(HTTP_HEAD);
@@ -1403,8 +1425,8 @@ void HandleUpgradeFirmware(void)
 
 void HandleUpgradeFirmwareStart(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   char svalue[100];
 
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_UPGRADE_STARTED));
@@ -1432,8 +1454,8 @@ void HandleUpgradeFirmwareStart(void)
 
 void HandleUploadDone(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_UPLOAD_DONE));
 
   char error[100];
@@ -1690,8 +1712,8 @@ void HandlePreflightRequest(void)
 
 void HandleHttpCommand(void)
 {
-  if (HttpUser()) { return; }
-//  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess(false)) { return; }
+
   char svalue[INPUT_BUFFER_SIZE];  // Large to serve Backlog
 
   AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_COMMAND));
@@ -1750,8 +1772,8 @@ void HandleHttpCommand(void)
 
 void HandleConsole(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONSOLE);
 
   String page = FPSTR(HTTP_HEAD);
@@ -1766,8 +1788,8 @@ void HandleConsole(void)
 
 void HandleAjaxConsoleRefresh(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   char svalue[INPUT_BUFFER_SIZE];  // Large to serve Backlog
   byte cflg = 1;
   byte counter = 0;                // Initial start, should never be 0 again
